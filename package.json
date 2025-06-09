@@ -1,7 +1,7 @@
 {
   "name": "simple-chat",
   "version": "1.0.0",
-  "description": "Simple chat application",
+  "description": "Simple chat application with user system",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
