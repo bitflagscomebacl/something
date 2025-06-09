@@ -153,6 +153,12 @@
             border-top: 1px solid #e9ecef;
         }
 
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
         #messageForm { 
             display: flex; 
             gap: 10px; 
@@ -173,7 +179,12 @@
             border-color: #4a90e2;
         }
 
-        .send-btn { 
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .send-btn, .file-btn { 
             padding: 12px 20px; 
             background: linear-gradient(135deg, #4a90e2, #357abd);
             color: white; 
@@ -185,16 +196,96 @@
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .send-btn:hover {
+        .file-btn {
+            background: linear-gradient(135deg, #28a745, #20692e);
+            padding: 12px 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-btn input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .send-btn:hover, .file-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
         }
 
-        .send-btn:disabled {
+        .file-btn:hover {
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .send-btn:disabled, .file-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .media-message {
+            margin-top: 8px;
+        }
+
+        .media-message img {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .media-message video {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 8px;
+        }
+
+        .media-message .file-link {
+            display: inline-block;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            text-decoration: none;
+            color: inherit;
+            margin-top: 5px;
+        }
+
+        .media-message .file-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .upload-progress {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            cursor: pointer;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .modal img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
         }
 
         .login-screen {
@@ -289,10 +380,19 @@
                 <div id="messages"></div>
                 
                 <div class="input-area">
-                    <form id="messageForm">
-                        <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
-                        <button type="submit" class="send-btn" id="sendBtn">Send</button>
-                    </form>
+                    <div class="input-container">
+                        <div id="uploadProgress" class="upload-progress" style="display: none;"></div>
+                        <form id="messageForm">
+                            <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+                            <div class="button-group">
+                                <label for="fileInput" class="file-btn" id="fileBtn">
+                                    📎
+                                    <input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx,.txt">
+                                </label>
+                                <button type="submit" class="send-btn" id="sendBtn">Send</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -304,6 +404,11 @@
             <input type="text" id="usernameInput" placeholder="Enter your username" maxlength="20">
             <button id="joinBtn">Join Chat</button>
         </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal">
+        <img class="modal-content" id="modalImage">
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -323,6 +428,11 @@
         const joinBtn = document.getElementById('joinBtn');
         const userList = document.getElementById('userList');
         const connectionStatus = document.getElementById('connectionStatus');
+        const fileInput = document.getElementById('fileInput');
+        const fileBtn = document.getElementById('fileBtn');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const imageModal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
         
         let currentUsername = '';
         let isConnected = false;
@@ -375,10 +485,71 @@
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             if (input.value.trim() && isConnected) {
-                socket.emit('message', input.value.trim());
+                socket.emit('message', { message: input.value.trim() });
                 input.value = '';
             }
         });
+
+        // File upload
+        fileInput.addEventListener('change', handleFileUpload);
+
+        async function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            uploadProgress.style.display = 'block';
+            uploadProgress.textContent = 'Uploading...';
+            fileBtn.disabled = true;
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                const result = await response.json();
+                
+                // Send message with media
+                socket.emit('message', {
+                    message: '',
+                    media: {
+                        url: result.url,
+                        originalName: result.originalName,
+                        size: result.size,
+                        mimetype: result.mimetype
+                    }
+                });
+
+                uploadProgress.style.display = 'none';
+                fileInput.value = '';
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadProgress.textContent = 'Upload failed';
+                setTimeout(() => {
+                    uploadProgress.style.display = 'none';
+                }, 3000);
+            } finally {
+                fileBtn.disabled = false;
+            }
+        }
+
+        // Image modal
+        imageModal.addEventListener('click', () => {
+            imageModal.style.display = 'none';
+        });
+
+        function showImageModal(src) {
+            modalImage.src = src;
+            imageModal.style.display = 'block';
+        }
 
         // Socket events
         socket.on('message', (msgObj) => {
@@ -418,10 +589,32 @@
                 div.className += isCurrentUser ? ' user' : ' other';
                 
                 const time = new Date(msgObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                div.innerHTML = `
+                
+                let messageContent = `
                     <div class="message-info">${msgObj.username} • ${time}</div>
-                    <div class="message-text">${msgObj.message}</div>
                 `;
+                
+                // Add text message if exists
+                if (msgObj.message) {
+                    messageContent += `<div class="message-text">${msgObj.message}</div>`;
+                }
+                
+                // Add media if exists
+                if (msgObj.media) {
+                    messageContent += `<div class="media-message">`;
+                    
+                    if (msgObj.media.mimetype.startsWith('image/')) {
+                        messageContent += `<img src="${msgObj.media.url}" alt="${msgObj.media.originalName}" onclick="showImageModal('${msgObj.media.url}')">`;
+                    } else if (msgObj.media.mimetype.startsWith('video/')) {
+                        messageContent += `<video src="${msgObj.media.url}" controls></video>`;
+                    } else {
+                        messageContent += `<a href="${msgObj.media.url}" target="_blank" class="file-link">📄 ${msgObj.media.originalName}</a>`;
+                    }
+                    
+                    messageContent += `</div>`;
+                }
+                
+                div.innerHTML = messageContent;
             }
             
             messages.appendChild(div);
