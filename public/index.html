@@ -2,73 +2,437 @@
 <html>
 <head>
     <title>Simple Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            background: #f0f0f0; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        .connection-status {
+            font-size: 12px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        .status-connected { color: #4caf50; }
+        .status-disconnected { color: #f44336; }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            background: #f8f9fa;
+            width: 200px;
+            border-right: 1px solid #e9ecef;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: #495057;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .user-list {
+            list-style: none;
+        }
+
+        .user-list li {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 20px;
+            border: 1px solid #e9ecef;
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
         #messages { 
-            border: 1px solid #ccc; 
-            height: 400px; 
-            overflow-y: auto; 
-            padding: 10px; 
-            background: white; 
-            margin-bottom: 10px; 
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #ffffff;
         }
+
+        .message { 
+            margin: 15px 0;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.other {
+            background: #f1f3f4;
+            color: #202124;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            text-align: center;
+            margin: 10px auto;
+            font-style: italic;
+            font-size: 14px;
+            max-width: 50%;
+        }
+
+        .message-info {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .message-text {
+            font-size: 15px;
+            line-height: 1.4;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
         #messageForm { 
             display: flex; 
             gap: 10px; 
+            align-items: center;
         }
+
         #messageInput { 
             flex: 1; 
-            padding: 10px; 
-            border: 1px solid #ccc; 
+            padding: 12px 16px; 
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
         }
-        button { 
-            padding: 10px 20px; 
-            background: #007bff; 
+
+        #messageInput:focus {
+            border-color: #4a90e2;
+        }
+
+        .send-btn { 
+            padding: 12px 20px; 
+            background: linear-gradient(135deg, #4a90e2, #357abd);
             color: white; 
             border: none; 
+            border-radius: 25px;
             cursor: pointer; 
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .message { 
-            margin: 5px 0; 
-            padding: 5px; 
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .login-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .login-box h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .login-box input:focus {
+            border-color: #4a90e2;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #4a90e2, #357abd);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Simple Chat</h1>
-    <div id="messages"></div>
-    <form id="messageForm">
-        <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
-        <button type="submit">Send</button>
-    </form>
+    <div class="container">
+        <div class="header">
+            <h1>💬 Simple Chat</h1>
+            <div id="connectionStatus" class="connection-status">Connecting...</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h3>Online Users</h3>
+                <ul id="userList" class="user-list"></ul>
+            </div>
+            
+            <div class="chat-area">
+                <div id="messages"></div>
+                
+                <div class="input-area">
+                    <form id="messageForm">
+                        <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+                        <button type="submit" class="send-btn" id="sendBtn">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h2>Join the Chat</h2>
+            <input type="text" id="usernameInput" placeholder="Enter your username" maxlength="20">
+            <button id="joinBtn">Join Chat</button>
+        </div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
+        const socket = io({
+          transports: ['websocket', 'polling'],
+          upgrade: true,
+          rememberUpgrade: true
+        });
+        
         const messages = document.getElementById('messages');
         const form = document.getElementById('messageForm');
         const input = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loginScreen = document.getElementById('loginScreen');
+        const usernameInput = document.getElementById('usernameInput');
+        const joinBtn = document.getElementById('joinBtn');
+        const userList = document.getElementById('userList');
+        const connectionStatus = document.getElementById('connectionStatus');
+        
+        let currentUsername = '';
+        let isConnected = false;
 
+        // Connection status
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            isConnected = true;
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'connection-status status-connected';
+            sendBtn.disabled = false;
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+            isConnected = false;
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'connection-status status-disconnected';
+            sendBtn.disabled = true;
+        });
+
+        socket.on('connect_error', (error) => {
+            console.log('Connection error:', error);
+            connectionStatus.textContent = 'Connection Error';
+            connectionStatus.className = 'connection-status status-disconnected';
+        });
+
+        // Login functionality
+        joinBtn.addEventListener('click', joinChat);
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinChat();
+        });
+
+        function joinChat() {
+            const username = usernameInput.value.trim();
+            if (username && username.length >= 2) {
+                if (isConnected) {
+                    currentUsername = username;
+                    socket.emit('join', username);
+                    loginScreen.style.display = 'none';
+                } else {
+                    alert('Not connected to server. Please wait and try again.');
+                }
+            } else {
+                alert('Username must be at least 2 characters long');
+            }
+        }
+
+        // Message form
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (input.value) {
-                socket.emit('message', input.value);
+            if (input.value.trim() && isConnected) {
+                socket.emit('message', input.value.trim());
                 input.value = '';
             }
         });
 
-        socket.on('message', (msg) => {
+        // Socket events
+        socket.on('message', (msgObj) => {
+            console.log('Received message:', msgObj);
+            addMessage(msgObj);
+        });
+
+        socket.on('chat_history', (history) => {
+            console.log('Received chat history:', history.length, 'messages');
+            messages.innerHTML = '';
+            history.forEach(msgObj => addMessage(msgObj));
+        });
+
+        socket.on('user_list', (users) => {
+            console.log('Updated user list:', users);
+            userList.innerHTML = '';
+            users.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = user;
+                if (user === currentUsername) {
+                    li.style.fontWeight = 'bold';
+                    li.style.color = '#4a90e2';
+                }
+                userList.appendChild(li);
+            });
+        });
+
+        function addMessage(msgObj) {
             const div = document.createElement('div');
             div.className = 'message';
-            div.textContent = msg;
+            
+            if (msgObj.type === 'system') {
+                div.className += ' system';
+                div.innerHTML = `<div class="message-text">${msgObj.message}</div>`;
+            } else {
+                const isCurrentUser = msgObj.username === currentUsername;
+                div.className += isCurrentUser ? ' user' : ' other';
+                
+                const time = new Date(msgObj.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                div.innerHTML = `
+                    <div class="message-info">${msgObj.username} • ${time}</div>
+                    <div class="message-text">${msgObj.message}</div>
+                `;
+            }
+            
             messages.appendChild(div);
             messages.scrollTop = messages.scrollHeight;
-        });
+        }
+
+        // Focus username input on load
+        usernameInput.focus();
+        
+        // Initially disable send button until connected
+        sendBtn.disabled = true;
     </script>
 </body>
 </html>
